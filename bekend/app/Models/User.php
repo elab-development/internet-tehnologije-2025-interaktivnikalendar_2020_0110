@@ -22,7 +22,7 @@ class User extends Authenticatable
         'email',
         'password',
          
-
+        'uloga'  //'admin' ili 'tim_lider' ili 'zaposleni'
 
     ];
 
@@ -47,5 +47,22 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+ 
+    public function kalendari()
+    {
+        return $this->hasMany(Kalendar::class, 'user_id');
+    }
+
+
+    public function notifikacije()
+    {
+        return $this->hasMany(Notifikacija::class, 'user_id');
+    }
+
+     public function ucesnikDogadjaja()
+    {
+        return $this->hasMany(UcesnikDogadjaja::class, 'user_id');
     }
 }

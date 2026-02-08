@@ -6,7 +6,7 @@ import FormInput from "../../komponente/FormInput/FormInput";
 export default function Login() {
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ email: "test22@test.com", password: "123456" });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 
@@ -26,7 +26,7 @@ export default function Login() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
 
-      navigate("/");
+     navigate("/kalendari");
     } catch (err) {
       if (err.response?.status === 422) {
         setErrors(err.response.data.errors || {});

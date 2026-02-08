@@ -140,11 +140,13 @@
 .auth-wrap {
   min-height: 100vh;
   display: flex;
-  align-items: center;
+ align-items: flex-start;     /* umesto center */
   justify-content: center;
   padding: 40px 20px;
 }
-
+.auth-card {
+  margin: 0 auto; /* eksplicitno centriranje */
+}
 .auth-card {
   width: 100%;
   max-width: 420px;
@@ -826,5 +828,222 @@
   }
   .info-span-2 {
     grid-column: span 1;
+  }
+}
+/* EVENTS LIST U CELIJI */
+.cal-events {
+  display: grid;
+  gap: 8px;
+}
+
+/* Event kao kartica sa "visinom trajanja" */
+.cal-event {
+  height: var(--evh, 32px);
+  width: 100%;
+  border: 1px solid #eef2f7;
+  background: #f9fafb;
+  border-radius: 12px;
+
+  padding: 8px 10px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  transition: 0.15s;
+}
+
+.cal-event:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.07);
+  transform: translateY(-1px);
+}
+
+/* leva strana: vreme + naziv u istom redu */
+.cal-event-left {
+  min-width: 0;           /* ključno da ellipsis radi */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* vreme */
+.cal-event-time {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #374151;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 4px 8px;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+/* naziv */
+.cal-event-title {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* chip za ceo dan */
+.cal-event-chip {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: #111827;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+/* ceo dan vizuelno drugačije */
+.cal-event.is-allday {
+  background: #111827;
+  border-color: #111827;
+}
+
+.cal-event.is-allday .cal-event-title {
+  color: #ffffff;
+}
+
+.cal-event.is-allday .cal-event-time {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.cal-event.is-allday .cal-event-chip {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+.cal-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.cal-events {
+  flex: 1;
+  overflow: auto;
+  padding-right: 2px;
+}
+/* switch Mesec/Nedelja */
+.cal-switch {
+  display: inline-flex;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.cal-switch-btn {
+  border: none;
+  background: transparent;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.cal-switch-btn.active {
+  background: #111827;
+  color: #fff;
+}
+
+/* WEEK VIEW */
+.cal-week {
+  margin-top: 16px;
+}
+
+.cal-week-head {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cal-week-dow {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 10px 10px;
+  text-align: center;
+}
+
+.cal-week-dow-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: #374151;
+}
+
+.cal-week-dow-date {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  font-weight: 900;
+  color: #111827;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.cal-week-dow-date.is-today {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+
+.cal-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.cal-week-col {
+  min-height: 420px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 10px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.cal-week-col:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.07);
+}
+
+.cal-week-col.is-today {
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+
+.cal-week-events {
+  display: grid;
+  gap: 10px;
+  overflow: auto;
+  max-height: 420px;
+  padding-right: 2px;
+}
+
+/* Na telefonu: week u 2 kolone */
+@media (max-width: 650px) {
+  .cal-week-head,
+  .cal-week-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

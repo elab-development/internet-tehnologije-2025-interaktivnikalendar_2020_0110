@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DogadjajController;
 use App\Http\Controllers\Api\KalendarController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/kalendari', [KalendarController::class, 'store']);
     Route::delete('/kalendari/{id}', [KalendarController::class, 'destroy']);
     Route::put('/kalendari/{id}', [KalendarController::class, 'update']);
+
+
+
+    Route::get('/dogadjaji', [DogadjajController::class, 'index']);
+    Route::post('/dogadjaji', [DogadjajController::class, 'store']);
+    Route::get('/dogadjaji/{id}', [DogadjajController::class, 'show']);
+    Route::put('/dogadjaji/{id}', [DogadjajController::class, 'update']);
+    Route::delete('/dogadjaji/{id}', [DogadjajController::class, 'destroy']);
 });
 
 

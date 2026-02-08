@@ -532,3 +532,195 @@
     display: none; /* na telefonu sakrij dan u nedelji */
   }
 }
+/* da ćelije budu klikabilne */
+.cal-cell {
+  cursor: pointer;
+}
+/* =========================
+   MODAL (LEPŠI)
+   ========================= */
+
+/* tamniji blur overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.58);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  z-index: 999;
+}
+
+/* kartica modala */
+.modal {
+  width: 100%;
+  max-width: 760px;
+  background: #ffffff;
+  border-radius: 22px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.28);
+  overflow: hidden; /* da header divider radi lepo */
+}
+
+/* unutrašnji padding */
+.modal-inner {
+  padding: 18px;
+}
+
+/* header sa akcentom */
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 18px 14px 18px;
+  border-bottom: 1px solid #eef2f7;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfc 100%);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.2px;
+}
+
+.modal-subtitle {
+  margin: 6px 0 0 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* close dugme: round + hover */
+.modal-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  transition: 0.15s;
+}
+
+.modal-close:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+/* forma */
+.modal-form {
+  padding: 16px 18px 18px 18px;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.modal-span-2 {
+  grid-column: span 2;
+}
+
+/* lepši label */
+.modal .form-label {
+  font-size: 12px;
+  color: #374151;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+/* inputi u modalu */
+.modal .input {
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 12px 14px;
+  transition: 0.15s;
+}
+
+.modal .input:focus {
+  border-color: #111827;
+  box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.10);
+}
+
+/* textarea da izgleda kao input */
+.modal textarea.input {
+  padding: 12px 14px;
+  min-height: 90px;
+}
+
+/* “ceo dan” red */
+.modal-checkrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #eef2f7;
+  background: #f9fafb;
+  border-radius: 14px;
+}
+
+.modal-checkrow input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #111827;
+}
+
+/* error text */
+.modal .field-error {
+  margin-top: 2px;
+}
+
+/* alert u modalu */
+.modal .alert {
+  margin: 12px 18px 0 18px;
+}
+
+/* footer actions */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid #eef2f7;
+}
+
+/* dugmad da budu konzistentna */
+.modal-actions .btn-outline {
+  padding: 10px 16px;
+  border-radius: 14px;
+}
+
+.modal-actions .btn-primary {
+  padding: 10px 16px;
+  border-radius: 14px;
+}
+
+/* responsive */
+@media (max-width: 680px) {
+  .modal-grid {
+    grid-template-columns: 1fr;
+  }
+  .modal-span-2 {
+    grid-column: span 1;
+  }
+  .modal-actions {
+    flex-direction: column;
+  }
+  .modal-actions .btn-outline,
+  .modal-actions .btn-primary {
+    width: 100%;
+  }
+}
+
+ 

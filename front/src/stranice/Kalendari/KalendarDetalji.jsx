@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../../api/axios";
+import EventModal from "../../komponente/Dogadjaj/EventModal";
 
 const DAYS = ["Pon", "Uto", "Sre", "Čet", "Pet", "Sub", "Ned"];
 
@@ -37,32 +38,36 @@ export default function KalendarDetalji() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
+  // modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null); // JS Date
+
+  const load = async () => {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const res = await api.get(`/kalendari/${id}/dogadjaji`);
+      const list = res.data.data || [];
+      setEvents(list);
+
+      if (list.length === 0) setMessage(res.data.message || "");
+    } catch (err) {
+      setMessage(err.response?.data?.message || "Greška pri učitavanju događaja.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setMessage("");
-
-      try {
-        const res = await api.get(`/kalendari/${id}/dogadjaji`);
-        setEvents(res.data.data || []);
-        if ((res.data.data || []).length === 0) {
-          setMessage(res.data.message || "");
-        }
-      } catch (err) {
-        setMessage(err.response?.data?.message || "Greška pri učitavanju događaja.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     load();
   }, [id]);
 
-  // grupiši događaje po datumu (YYYY-MM-DD)
+  // grupiši događaje po danu koristeći POCETAK
   const eventsByDay = useMemo(() => {
     const map = new Map();
     for (const ev of events) {
-      const d = parseBackendDate(ev.datum);
+      const d = parseBackendDate(ev.pocetak);
       if (!d) continue;
       const key = toYMD(d);
       if (!map.has(key)) map.set(key, []);
@@ -71,17 +76,14 @@ export default function KalendarDetalji() {
     return map;
   }, [events]);
 
-  // napravi 6x7 grid (42 ćelije) koji pokriva ceo mesec + prelivi
+  // 6x7 grid
   const calendarCells = useMemo(() => {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
 
     const firstOfMonth = new Date(year, month, 1);
-    const lastOfMonth = new Date(year, month + 1, 0);
-
-    // JS: 0=nedelja..6=subota -> mi hoćemo ponedeljak kao 0
-    const jsDay = firstOfMonth.getDay(); // 0..6
-    const startOffset = (jsDay + 6) % 7; // pon=0, uto=1, ..., ned=6
+    const jsDay = firstOfMonth.getDay(); // 0..6 (ned..sub)
+    const startOffset = (jsDay + 6) % 7; // pon=0 ... ned=6
 
     const startDate = new Date(year, month, 1 - startOffset);
 
@@ -92,38 +94,46 @@ export default function KalendarDetalji() {
 
       const inMonth = d.getMonth() === month;
       const key = toYMD(d);
-      const dayEvents = eventsByDay.get(key) || [];
+      const dayEvents = (eventsByDay.get(key) || []).slice();
+
+      dayEvents.sort((a, b) => {
+        const da = parseBackendDate(a.pocetak)?.getTime() ?? 0;
+        const db = parseBackendDate(b.pocetak)?.getTime() ?? 0;
+        return da - db;
+      });
 
       cells.push({ date: d, inMonth, key, dayEvents });
     }
 
-    // (opciono) sortiraj događaje po vremenu unutar dana
-    for (const c of cells) {
-      c.dayEvents.sort((a, b) => {
-        const da = parseBackendDate(a.datum)?.getTime() ?? 0;
-        const db = parseBackendDate(b.datum)?.getTime() ?? 0;
-        return da - db;
-      });
-    }
-
-    return {
-      year,
-      month,
-      firstOfMonth,
-      lastOfMonth,
-      cells,
-    };
+    return { year, month, cells };
   }, [viewDate, eventsByDay]);
 
-  const prevMonth = () => {
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
-  };
+  const prevMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  const nextMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   const todayKey = toYMD(new Date());
+
+  const openDayModal = (dateObj) => {
+    setSelectedDate(dateObj);
+    setModalOpen(true);
+  };
+
+  const closeDayModal = () => {
+    setModalOpen(false);
+    setSelectedDate(null);
+  };
+
+  const createEvent = async (payload) => {
+    try {
+      await api.post("/dogadjaji", payload);
+      await load();
+      return true;
+    } catch (err) {
+      // ovde samo javljamo false (modal ima svoj fallback message)
+      console.error(err);
+      return false;
+    }
+  };
 
   return (
     <div className="page">
@@ -169,6 +179,7 @@ export default function KalendarDetalji() {
               {calendarCells.cells.map((c) => (
                 <div
                   key={c.key}
+                  onClick={() => openDayModal(c.date)}
                   className={[
                     "cal-cell",
                     c.inMonth ? "in-month" : "out-month",
@@ -184,9 +195,10 @@ export default function KalendarDetalji() {
 
                   <div className="cal-events">
                     {c.dayEvents.slice(0, 3).map((ev) => {
-                      const d = parseBackendDate(ev.datum);
+                      const d = parseBackendDate(ev.pocetak);
                       const time = d ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}` : "";
-                      const title = ev.naziv || ev.naslov || ev.title || "Događaj";
+                      const title = ev.naziv || "Događaj";
+
                       return (
                         <div key={ev.id ?? `${c.key}-${title}`} className="cal-event">
                           <span className="cal-event-time">{time}</span>
@@ -203,6 +215,14 @@ export default function KalendarDetalji() {
               ))}
             </div>
           )}
+
+          <EventModal
+            open={modalOpen}
+            onClose={closeDayModal}
+            kalendarId={id}
+            selectedDate={selectedDate}
+            onSubmit={createEvent}
+          />
         </div>
       </div>
     </div>

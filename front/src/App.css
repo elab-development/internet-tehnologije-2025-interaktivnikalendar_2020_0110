@@ -396,3 +396,139 @@
     width: 100%;
   }
 }
+/* =========================
+   Mesečni kalendar (grid)
+   ========================= */
+
+.cal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cal-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.cal-dow {
+  font-weight: 700;
+  font-size: 13px;
+  color: #374151;
+  text-align: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.cal-cell {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  min-height: 110px;
+  padding: 10px 10px 8px;
+  transition: 0.15s;
+  overflow: hidden;
+}
+
+.cal-cell:hover {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+.cal-cell.out-month {
+  background: #f9fafb;
+  color: #6b7280;
+  border-style: dashed;
+}
+
+.cal-cell.is-today {
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+
+.cal-cell-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cal-daynum {
+  font-weight: 800;
+  color: #111827;
+}
+
+.cal-badge {
+  font-size: 12px;
+  color: #111827;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.cal-events {
+  display: grid;
+  gap: 6px;
+}
+
+.cal-event {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  background: #f9fafb;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+
+.cal-event-time {
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.cal-event-title {
+  color: #111827;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-more {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* responsive */
+@media (max-width: 900px) {
+  .cal-grid {
+    gap: 8px;
+  }
+  .cal-cell {
+    min-height: 95px;
+  }
+}
+
+@media (max-width: 650px) {
+  .cal-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .cal-dow {
+    display: none; /* na telefonu sakrij dan u nedelji */
+  }
+}

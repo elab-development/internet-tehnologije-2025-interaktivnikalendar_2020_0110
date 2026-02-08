@@ -31,7 +31,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/kalendari/{id}', [KalendarController::class, 'update']);
 
 
+    Route::get('/kalendari/{id}/dogadjaji', [KalendarController::class, 'dogadjaji']);
 
+    
     Route::get('/dogadjaji', [DogadjajController::class, 'index']);
     Route::post('/dogadjaji', [DogadjajController::class, 'store']);
     Route::get('/dogadjaji/{id}', [DogadjajController::class, 'show']);

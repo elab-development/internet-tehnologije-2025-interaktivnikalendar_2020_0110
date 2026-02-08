@@ -144,4 +144,35 @@ class KalendarController extends Controller
             'message' => 'Kalendar nije pronađen.',
         ], 404);
     }
+
+
+
+        /**
+     * Događaji za određeni kalendar (samo po kalendar_id)
+     */
+    public function dogadjaji($id)
+    {
+        $kalendar = Kalendar::find($id);
+
+        if (!$kalendar) {
+            return response()->json([
+                'message' => 'Kalendar nije pronađen.'
+            ], 404);
+        }
+
+        $dogadjaji = $kalendar->dogadjaji()
+            ->orderBy('pocetak', 'asc')   // promeni ako koristiš drugi naziv kolone
+            ->get();
+
+        if ($dogadjaji->isEmpty()) {
+            return response()->json([
+                'message' => 'Nema događaja za ovaj kalendar.',
+                'data' => []
+            ]);
+        }
+
+        return response()->json([
+            'data' => $dogadjaji
+        ]);
+    }
 }

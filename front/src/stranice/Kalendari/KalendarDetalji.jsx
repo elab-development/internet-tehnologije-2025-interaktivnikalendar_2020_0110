@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import api from "../../api/axios";
+import api from "../../api/axios"; 
+import EventInfoModal from "../../komponente/Dogadjaj/EventInfoModal";
 import EventModal from "../../komponente/Dogadjaj/EventModal";
 
 const DAYS = ["Pon", "Uto", "Sre", "Čet", "Pet", "Sub", "Ned"];
@@ -26,6 +27,27 @@ function monthLabel(year, monthIndex) {
   return d.toLocaleDateString("sr-RS", { month: "long", year: "numeric" });
 }
 
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+/**
+ * Visina eventa u mesečnom gridu (nije pravi "time grid", ali izgleda kao trajanje).
+ * - ceo_dan: visina ~ 64
+ * - inače: 15min = 8px, min 26, max 72
+ */
+function getEventHeightPx(ev) {
+  if (ev?.ceo_dan) return 64;
+
+  const s = parseBackendDate(ev?.pocetak);
+  const e = parseBackendDate(ev?.kraj);
+  if (!s || !e) return 28;
+
+  const minutes = Math.max(0, (e.getTime() - s.getTime()) / 60000);
+  const px = Math.round((minutes / 15) * 8); // 15min -> 8px
+  return clamp(px, 26, 72);
+}
+
 export default function KalendarDetalji() {
   const { id } = useParams();
 
@@ -38,9 +60,13 @@ export default function KalendarDetalji() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  // modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null); // JS Date
+  // CREATE modal
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  // INFO modal
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -63,7 +89,7 @@ export default function KalendarDetalji() {
     load();
   }, [id]);
 
-  // grupiši događaje po danu koristeći POCETAK
+  // grupiši događaje po danu (po POCETAK)
   const eventsByDay = useMemo(() => {
     const map = new Map();
     for (const ev of events) {
@@ -96,7 +122,12 @@ export default function KalendarDetalji() {
       const key = toYMD(d);
       const dayEvents = (eventsByDay.get(key) || []).slice();
 
+      // sort: ceo_dan prvo, pa po pocetku
       dayEvents.sort((a, b) => {
+        const ac = a.ceo_dan ? 1 : 0;
+        const bc = b.ceo_dan ? 1 : 0;
+        if (ac !== bc) return bc - ac;
+
         const da = parseBackendDate(a.pocetak)?.getTime() ?? 0;
         const db = parseBackendDate(b.pocetak)?.getTime() ?? 0;
         return da - db;
@@ -113,14 +144,24 @@ export default function KalendarDetalji() {
 
   const todayKey = toYMD(new Date());
 
+  // open create modal (day click)
   const openDayModal = (dateObj) => {
     setSelectedDate(dateObj);
-    setModalOpen(true);
+    setCreateOpen(true);
+  };
+  const closeDayModal = () => {
+    setCreateOpen(false);
+    setSelectedDate(null);
   };
 
-  const closeDayModal = () => {
-    setModalOpen(false);
-    setSelectedDate(null);
+  // open info modal (event click)
+  const openEventInfo = (ev) => {
+    setSelectedEvent(ev);
+    setInfoOpen(true);
+  };
+  const closeEventInfo = () => {
+    setInfoOpen(false);
+    setSelectedEvent(null);
   };
 
   const createEvent = async (payload) => {
@@ -129,7 +170,17 @@ export default function KalendarDetalji() {
       await load();
       return true;
     } catch (err) {
-      // ovde samo javljamo false (modal ima svoj fallback message)
+      console.error(err);
+      return false;
+    }
+  };
+
+  const deleteEvent = async (eventId) => {
+    try {
+      await api.delete(`/dogadjaji/${eventId}`);
+      await load();
+      return true;
+    } catch (err) {
       console.error(err);
       return false;
     }
@@ -194,21 +245,38 @@ export default function KalendarDetalji() {
                   </div>
 
                   <div className="cal-events">
-                    {c.dayEvents.slice(0, 3).map((ev) => {
-                      const d = parseBackendDate(ev.pocetak);
-                      const time = d ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}` : "";
+                    {c.dayEvents.slice(0, 4).map((ev) => {
+                      const start = parseBackendDate(ev.pocetak);
+                      const time =
+                        ev.ceo_dan
+                          ? "Ceo dan"
+                          : start
+                          ? `${pad2(start.getHours())}:${pad2(start.getMinutes())}`
+                          : "";
+
                       const title = ev.naziv || "Događaj";
+                      const h = getEventHeightPx(ev);
 
                       return (
-                        <div key={ev.id ?? `${c.key}-${title}`} className="cal-event">
+                        <button
+                          key={ev.id ?? `${c.key}-${title}`}
+                          type="button"
+                          className={["cal-event", ev.ceo_dan ? "is-allday" : ""].join(" ")}
+                          style={{ ["--evh"]: `${h}px` }}
+                          onClick={(e) => {
+                            e.stopPropagation(); // da ne otvori create modal
+                            openEventInfo(ev);
+                          }}
+                          title={title}
+                        >
                           <span className="cal-event-time">{time}</span>
                           <span className="cal-event-title">{title}</span>
-                        </div>
+                        </button>
                       );
                     })}
 
-                    {c.dayEvents.length > 3 && (
-                      <div className="cal-more">+{c.dayEvents.length - 3} još</div>
+                    {c.dayEvents.length > 4 && (
+                      <div className="cal-more">+{c.dayEvents.length - 4} još</div>
                     )}
                   </div>
                 </div>
@@ -216,12 +284,21 @@ export default function KalendarDetalji() {
             </div>
           )}
 
+          {/* CREATE modal */}
           <EventModal
-            open={modalOpen}
+            open={createOpen}
             onClose={closeDayModal}
             kalendarId={id}
             selectedDate={selectedDate}
             onSubmit={createEvent}
+          />
+
+          {/* INFO modal */}
+          <EventInfoModal
+            open={infoOpen}
+            onClose={closeEventInfo}
+            event={selectedEvent}
+            onDelete={deleteEvent}
           />
         </div>
       </div>

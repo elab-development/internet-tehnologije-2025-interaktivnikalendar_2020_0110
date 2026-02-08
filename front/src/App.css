@@ -723,4 +723,108 @@
   }
 }
 
- 
+ /* event u gridu sada je button + visina po var */
+.cal-event {
+  width: 100%;
+  border: 1px solid #eef2f7;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+
+  /* ključ: visina po trajanju */
+  height: var(--evh, 28px);
+  transition: 0.15s;
+}
+
+.cal-event:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.cal-event-time {
+  font-weight: 800;
+  color: #6b7280;
+}
+
+.cal-event.is-allday {
+  background: #111827;
+  border-color: #111827;
+}
+
+.cal-event.is-allday .cal-event-time,
+.cal-event.is-allday .cal-event-title {
+  color: #ffffff;
+}
+
+/* INFO MODAL content */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.info-row {
+  border: 1px solid #eef2f7;
+  background: #f9fafb;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.info-span-2 {
+  grid-column: span 2;
+}
+
+.info-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #111827;
+}
+
+.info-desc {
+  white-space: pre-wrap;
+  color: #374151;
+}
+
+/* danger button */
+.btn-danger {
+  background: #991b1b;
+  color: white;
+  border: 1px solid #991b1b;
+  padding: 10px 16px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 800;
+  transition: 0.15s;
+}
+
+.btn-danger:hover {
+  background: #7f1d1d;
+  border-color: #7f1d1d;
+}
+
+.btn-danger:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 680px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  .info-span-2 {
+    grid-column: span 1;
+  }
+}

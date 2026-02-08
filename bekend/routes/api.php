@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DogadjajController;
 use App\Http\Controllers\Api\KalendarController;
+use App\Http\Controllers\Api\NotifikacijaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dogadjaji/{id}', [DogadjajController::class, 'show']);
     Route::put('/dogadjaji/{id}', [DogadjajController::class, 'update']);
     Route::delete('/dogadjaji/{id}', [DogadjajController::class, 'destroy']);
+
+
+    Route::apiResource('notifikacije', NotifikacijaController::class);
 });
 
 

@@ -64,7 +64,20 @@ export default function Kalendari() {
       setCreating(false);
     }
   };
+const handleDelete = async (kalendar) => {
+  const ok = window.confirm(
+    `Da li sigurno želiš da obrišeš kalendar "${kalendar.naziv}"?`
+  );
+  if (!ok) return;
 
+  setMessage("");
+  try {
+    await api.delete(`/kalendari/${kalendar.id}`);
+    await load();
+  } catch (err) {
+    setMessage(err.response?.data?.message || "Greška pri brisanju kalendara.");
+  }
+};
   return (
     <div className="page">
       <div className="auth-wrap">
@@ -90,9 +103,14 @@ export default function Kalendari() {
           {/* Lista */}
           {!loading && kalendari.length > 0 && (
             <div className="calendar-list">
-              {kalendari.map((k) => (
-                <CalendarCard key={k.id} kalendar={k} onSelect={handleSelect} />
-              ))}
+             {kalendari.map((k) => (
+                <CalendarCard
+                    key={k.id}
+                    kalendar={k}
+                    onSelect={handleSelect}
+                    onDelete={handleDelete}
+                />
+                ))}
             </div>
           )}
 

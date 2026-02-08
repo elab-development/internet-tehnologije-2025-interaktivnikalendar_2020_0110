@@ -6,9 +6,11 @@ import Login from "./stranice/Auth/Login";
 import Register from "./stranice/Auth/Register";
 import Kalendari from "./stranice/Kalendari/Kalendari";
 import KalendarDetalji from "./stranice/Kalendari/KalendarDetalji";
+import Navbar from "./komponente/Navigacija/Navbar";
 function App() {
   return (
     <BrowserRouter>
+    <Navbar />
       <Routes>
         <Route path="/" element={<Pocetna />} />
          <Route path="/login" element={<Login />} />

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Notifikacija extends Model
 {
+    protected $table = 'notifikacije';
         protected $fillable = [
             'user_id',
             'dogadjaj_id',
@@ -14,6 +15,7 @@ class Notifikacija extends Model
             'poslato_u',
             'status',       // na_cekanju | poslato | greska
             'greska',
+            'text'          // dodatni tekst notifikacije
     ];
 
 

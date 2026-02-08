@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Dogadjaj extends Model
 {
+    protected $table = 'dogadjaji';
     protected $fillable = [
         'kalendar_id',
         'naziv',

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Kalendar extends Model
 {
+    protected $table = 'kalendari';
        protected $fillable = [
         'user_id',
         'naziv',

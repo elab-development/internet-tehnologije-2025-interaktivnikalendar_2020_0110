@@ -243,4 +243,112 @@
   text-align: center;
   text-decoration: none;
   display: inline-block;
+}/* =========================
+   KALENDARI UI (LEPSI)
+   ========================= */
+
+.calendar-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+/* pojedinačan kalendar */
+.calendar-item {
+  width: 100%;
+  text-align: left;
+  background: white;
+  border: 1px solid #e5e7eb;
+  padding: 16px 18px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* hover efekat */
+.calendar-item:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+/* mala linija sa strane (akcenat) */
+.calendar-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: #111827;
+  opacity: 0;
+  transition: 0.18s;
+}
+
+.calendar-item:hover::before {
+  opacity: 1;
+}
+
+.calendar-item-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.calendar-item-sub {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* kada nema kalendara */
+.calendar-empty {
+  text-align: center;
+  color: #6b7280;
+  padding: 20px 0;
+}
+
+/* loading */
+.calendar-loading {
+  text-align: center;
+  color: #6b7280;
+}
+/* =========================
+   DODAJ KALENDAR FORMA
+   ========================= */
+
+.calendar-create-box {
+  margin-top: 12px;
+  margin-bottom: 14px;
+}
+
+.calendar-create {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.calendar-create-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.calendar-create-btn {
+  height: 44px; /* da se izravna sa inputom */
+  padding: 12px 18px;
+}
+
+@media (max-width: 520px) {
+  .calendar-create-row {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-create-btn {
+    width: 100%;
+  }
 }

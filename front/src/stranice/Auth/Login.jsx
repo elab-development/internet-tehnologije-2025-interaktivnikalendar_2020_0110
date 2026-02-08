@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../api/axios";
+import FormInput from "../../komponente/FormInput/FormInput";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -10,7 +11,8 @@ export default function Login() {
   const [message, setMessage] = useState("");
 
   const handleChange = (e) => {
-    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -43,39 +45,34 @@ export default function Login() {
         {message && <div className="alert alert-error">{message}</div>}
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="form-field">
-            <label className="form-label">Email</label>
-            <input
-              className="input"
-              type="email"
-              name="email"
-              placeholder="npr. vanja@gmail.com"
-              value={form.email}
-              onChange={handleChange}
-            />
-            {errors.email && <p className="field-error">{errors.email[0]}</p>}
-          </div>
+          <FormInput
+            label="Email"
+            name="email"
+            type="email"
+            placeholder="npr. vanja@gmail.com"
+            value={form.email}
+            onChange={handleChange}
+            error={errors.email?.[0]}
+            autoComplete="email"
+          />
 
-          <div className="form-field">
-            <label className="form-label">Lozinka</label>
-            <input
-              className="input"
-              type="password"
-              name="password"
-              placeholder="Unesi lozinku"
-              value={form.password}
-              onChange={handleChange}
-            />
-            {errors.password && (
-              <p className="field-error">{errors.password[0]}</p>
-            )}
-          </div>
+          <FormInput
+            label="Lozinka"
+            name="password"
+            type="password"
+            placeholder="Unesi lozinku"
+            value={form.password}
+            onChange={handleChange}
+            error={errors.password?.[0]}
+            autoComplete="current-password"
+          />
 
           <div className="auth-actions">
             <button className="btn-primary" type="submit">
               Prijavi se
             </button>
-            <Link className="btn-outline" to="/register" style={{ textAlign: "center", textDecoration: "none", display: "inline-block" }}>
+
+            <Link className="btn-outline btn-link" to="/register">
               Nemam nalog
             </Link>
           </div>

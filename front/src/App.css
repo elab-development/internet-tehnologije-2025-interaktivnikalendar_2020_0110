@@ -239,3 +239,8 @@
   font-size: 12px;
   margin: 0;
 }
+.btn-link {
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}

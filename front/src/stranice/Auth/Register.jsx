@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../api/axios";
+import FormInput from "../../komponente/FormInput/FormInput";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -10,14 +11,15 @@ export default function Register() {
     email: "",
     password: "",
     password_confirmation: "",
-    uloga: "zaposleni", 
+    uloga: "zaposleni",
   });
 
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 
   const handleChange = (e) => {
-    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -45,63 +47,53 @@ export default function Register() {
     <div className="page auth-wrap">
       <div className="auth-card">
         <h2 className="auth-title">Registracija</h2>
-        <p className="auth-subtitle">Kreiraj nalog  </p>
+        <p className="auth-subtitle">Kreiraj nalog</p>
 
         {message && <div className="alert alert-error">{message}</div>}
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="form-field">
-            <label className="form-label">Ime</label>
-            <input
-              className="input"
-              type="text"
-              name="name"
-              placeholder="npr. Vanja"
-              value={form.name}
-              onChange={handleChange}
-            />
-            {errors.name && <p className="field-error">{errors.name[0]}</p>}
-          </div>
+          <FormInput
+            label="Ime"
+            name="name"
+            placeholder="npr. Vanja"
+            value={form.name}
+            onChange={handleChange}
+            error={errors.name?.[0]}
+            autoComplete="name"
+          />
 
-          <div className="form-field">
-            <label className="form-label">Email</label>
-            <input
-              className="input"
-              type="email"
-              name="email"
-              placeholder="npr. vanja@gmail.com"
-              value={form.email}
-              onChange={handleChange}
-            />
-            {errors.email && <p className="field-error">{errors.email[0]}</p>}
-          </div>
+          <FormInput
+            label="Email"
+            name="email"
+            type="email"
+            placeholder="npr. vanja@gmail.com"
+            value={form.email}
+            onChange={handleChange}
+            error={errors.email?.[0]}
+            autoComplete="email"
+          />
 
-          <div className="form-field">
-            <label className="form-label">Lozinka</label>
-            <input
-              className="input"
-              type="password"
-              name="password"
-              placeholder="Min 6 karaktera"
-              value={form.password}
-              onChange={handleChange}
-            />
-            {errors.password && (
-              <p className="field-error">{errors.password[0]}</p>
-            )}
-          </div>
+          <FormInput
+            label="Lozinka"
+            name="password"
+            type="password"
+            placeholder="Min 6 karaktera"
+            value={form.password}
+            onChange={handleChange}
+            error={errors.password?.[0]}
+            autoComplete="new-password"
+          />
 
-          <div className="form-field">
-            <label className="form-label">Potvrda lozinke</label>
-            <input
-              className="input"
-              type="password"
-              name="password_confirmation"
-              placeholder="Ponovi lozinku"
-              value={form.password_confirmation}
-              onChange={handleChange}
-            />
-          </div>
+          <FormInput
+            label="Potvrda lozinke"
+            name="password_confirmation"
+            type="password"
+            placeholder="Ponovi lozinku"
+            value={form.password_confirmation}
+            onChange={handleChange}
+            error={errors.password_confirmation?.[0]}
+            autoComplete="new-password"
+          />
 
           {/* uloga je skrivena, uvek zaposleni */}
           <input type="hidden" name="uloga" value="zaposleni" />
@@ -110,7 +102,8 @@ export default function Register() {
             <button className="btn-primary" type="submit">
               Registruj se
             </button>
-            <Link className="btn-outline" to="/login" style={{ textAlign: "center", textDecoration: "none", display: "inline-block" }}>
+
+            <Link className="btn-outline btn-link" to="/login">
               Imam nalog
             </Link>
           </div>

@@ -55,7 +55,7 @@ export default function Register() {
           <FormInput
             label="Ime"
             name="name"
-            placeholder="npr. Vanja"
+            placeholder="Unesi svoje ime"
             value={form.name}
             onChange={handleChange}
             error={errors.name?.[0]}
@@ -66,7 +66,7 @@ export default function Register() {
             label="Email"
             name="email"
             type="email"
-            placeholder="npr. vanja@gmail.com"
+            placeholder="Unesi email adresu"
             value={form.email}
             onChange={handleChange}
             error={errors.email?.[0]}

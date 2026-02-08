@@ -49,7 +49,7 @@ export default function Login() {
             label="Email"
             name="email"
             type="email"
-            placeholder="npr. vanja@gmail.com"
+            placeholder="Unesi svoj email"
             value={form.email}
             onChange={handleChange}
             error={errors.email?.[0]}

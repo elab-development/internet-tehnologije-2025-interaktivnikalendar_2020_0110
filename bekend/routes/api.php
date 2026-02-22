@@ -47,15 +47,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     //admin
-      Route::get('/stats/summary', [AdminStatsController::class, 'summary']);
-    Route::get('/stats/users-over-time', [AdminStatsController::class, 'usersOverTime']);
-    Route::get('/stats/events-over-time', [AdminStatsController::class, 'eventsOverTime']);
-    Route::get('/stats/notifications-by-status', [AdminStatsController::class, 'notificationsByStatus']);
+      Route::get('/admin/stats/summary', [AdminStatsController::class, 'summary']);
+    Route::get('/admin/stats/users-over-time', [AdminStatsController::class, 'usersOverTime']);
+    Route::get('/admin/stats/events-over-time', [AdminStatsController::class, 'eventsOverTime']);
+    Route::get('/admin/stats/notifications-by-status', [AdminStatsController::class, 'notificationsByStatus']);
 
-    Route::get('/users', [AdminUserController::class, 'index']);
-    Route::get('/users/{id}', [AdminUserController::class, 'show']);
-    Route::put('/users/{id}', [AdminUserController::class, 'update']);
-    Route::delete('/users/{id}', [AdminUserController::class, 'destroy']);
+    Route::get('/admin/users', [AdminUserController::class, 'index']);
+    Route::get('/admin/users/{id}', [AdminUserController::class, 'show']);
+    Route::put('/admin/users/{id}', [AdminUserController::class, 'update']);
+    Route::delete('/admin/users/{id}', [AdminUserController::class, 'destroy']);
 });
 
 

@@ -20,12 +20,18 @@ function parseBackendDate(s) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**  Backend format: YYYY-MM-DD HH:mm:ss */
+function toBackendString(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(
+    d.getMinutes()
+  )}:${pad2(d.getSeconds())}`;
+}
+
 function monthLabel(date) {
   return date.toLocaleDateString("sr-RS", { month: "long", year: "numeric" });
 }
 
 function startOfWeek(date) {
-  // ponedeljak kao start
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   const jsDay = d.getDay(); // 0..6 (ned..sub)
@@ -35,7 +41,6 @@ function startOfWeek(date) {
 }
 
 function weekLabel(date) {
-  // label tipa: 08.02.2026. — 14.02.2026.
   const start = startOfWeek(date);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
@@ -48,11 +53,6 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
-/**
- * Visina eventa (mesečni grid): sugeriše trajanje.
- * - ceo_dan: 60px
- * - inače: 15min = 8px, min 28, max 90
- */
 function getEventHeightPx(ev) {
   if (ev?.ceo_dan) return 60;
 
@@ -77,7 +77,6 @@ function escapeICSText(value) {
 }
 
 function formatICSLocal(date) {
-  // "local floating time" (bez Z): YYYYMMDDTHHMMSS
   return (
     `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}` +
     `T${pad2(date.getHours())}${pad2(date.getMinutes())}${pad2(date.getSeconds())}`
@@ -85,7 +84,6 @@ function formatICSLocal(date) {
 }
 
 function formatICSUTC(date) {
-  // UTC: YYYYMMDDTHHMMSSZ
   const d = new Date(date.getTime());
   return (
     `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}` +
@@ -168,7 +166,7 @@ function buildICS(events, { calendarName = "Kalendar", calendarId = "" } = {}) {
   const header = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//TeachifyApp//Kalendar Export//SR",
+    "PRODID:-//ITEH//Kalendar Export//SR",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeICSText(calendarName)}`,
@@ -195,6 +193,54 @@ function downloadTextFile(filename, content, mime = "text/calendar;charset=utf-8
   URL.revokeObjectURL(url);
 }
 
+/** Normalizacija repeat polja da Laravel validacija ne pukne */
+function normalizeRepeat(ev) {
+  const ponavljajuci = !!ev?.ponavljajuci;
+
+  if (!ponavljajuci) {
+    return {
+      ponavljajuci: false,
+      period_ponavljanja: null,
+      ponavlja_se_do: null,
+    };
+  }
+
+  const raw = (ev?.period_ponavljanja ?? "").toString().trim().toLowerCase();
+
+  const map = {
+    dnevno: "dnevno",
+    nedeljno: "nedeljno",
+    mesecno: "mesecno",
+    godisnje: "godisnje",
+
+    // često FE/DB varijante
+    daily: "dnevno",
+    weekly: "nedeljno",
+    monthly: "mesecno",
+    yearly: "godisnje",
+    annual: "godisnje",
+    annually: "godisnje",
+  };
+
+  const period = map[raw] ?? null;
+
+  // ponavlja_se_do treba da bude date; ako dolazi kao string - ostavi, ako je Date - formatiraj
+  let ponavljaSeDo = ev?.ponavlja_se_do ?? null;
+  if (ponavljaSeDo instanceof Date) {
+    ponavljaSeDo = toBackendString(ponavljaSeDo);
+  } else if (typeof ponavljaSeDo === "string") {
+    ponavljaSeDo = ponavljaSeDo.trim() || null;
+  }
+
+  // Ako je ponavljajući, a period nije dobar -> POŠALJI null da vidimo tačnu backend grešku u UI (ili setuj default)
+  // Ja ovde stavljam default "nedeljno" da DnD ne puca.
+  return {
+    ponavljajuci: true,
+    period_ponavljanja: period ?? "nedeljno",
+    ponavlja_se_do: ponavljaSeDo,
+  };
+}
+
 export default function KalendarDetalji() {
   const { id } = useParams();
 
@@ -213,6 +259,8 @@ export default function KalendarDetalji() {
 
   const [infoOpen, setInfoOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+
+  const [draggingEventId, setDraggingEventId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -300,14 +348,13 @@ export default function KalendarDetalji() {
   };
 
   const headerLabel = layout === "week" ? weekLabel(viewDate) : monthLabel(viewDate);
-
   const calendarName = useMemo(() => `Kalendar #${id}`, [id]);
 
   const exportAllICS = () => {
     const ics = buildICS(events, { calendarName, calendarId: id });
     downloadTextFile(`kalendar-${id}.ics`, ics);
   };
- 
+
   const exportSingleEventICS = (ev) => {
     const ics = buildICS([ev], { calendarName, calendarId: id });
 
@@ -320,6 +367,81 @@ export default function KalendarDetalji() {
     const fileKey = key || "1";
 
     downloadTextFile(`dogadjaj-${fileKey}.ics`, ics);
+  };
+
+  const moveEventToDatePersist = async (eventId, targetDate) => {
+    const ev = events.find((x) => String(x.id) === String(eventId));
+    if (!ev) return;
+
+    const s = parseBackendDate(ev.pocetak);
+    const e = parseBackendDate(ev.kraj);
+    if (!s || !e) return;
+
+    const isAllDay = !!ev.ceo_dan;
+    const durationMs = Math.max(0, e.getTime() - s.getTime());
+
+    const newStart = new Date(targetDate);
+    if (isAllDay) newStart.setHours(0, 0, 0, 0);
+    else newStart.setHours(s.getHours(), s.getMinutes(), s.getSeconds(), 0);
+
+    const newEnd = new Date(newStart.getTime() + durationMs);
+
+    const newStartStr = toBackendString(newStart);
+    const newEndStr = toBackendString(newEnd);
+
+    const prevEvents = [...events];
+
+    // optimistic UI
+    setEvents((prev) =>
+      prev.map((x) =>
+        String(x.id) === String(eventId) ? { ...x, pocetak: newStartStr, kraj: newEndStr } : x
+      )
+    );
+
+    try {
+      const repeat = normalizeRepeat(ev);
+
+      const payload = {
+        kalendar_id: Number(id),
+        naziv: ev.naziv ?? "Događaj",
+        opis: ev.opis ?? null,
+        lokacija: ev.lokacija ?? null,
+        pocetak: newStartStr,
+        kraj: newEndStr,
+        ceo_dan: !!ev.ceo_dan,
+        status: ev.status ?? "planirano",
+ 
+        ponavljajuci: repeat.ponavljajuci,
+        period_ponavljanja: repeat.period_ponavljanja,
+        ponavlja_se_do: repeat.ponavlja_se_do,
+      };
+
+      await api.put(`/dogadjaji/${eventId}`, payload);
+      setMessage("");
+    } catch (err) {
+      console.error("PUT /dogadjaji failed:", err.response?.data || err);
+
+      const firstError =
+        err.response?.data?.errors ? Object.values(err.response.data.errors)?.[0]?.[0] : null;
+
+      setMessage(firstError || err.response?.data?.message || "Greška pri čuvanju promene (drag & drop).");
+      setEvents(prevEvents);
+    }
+  };
+
+  const onEventDragStart = (eventId) => {
+    setDraggingEventId(eventId);
+  };
+
+  const onDayDrop = async (dateObj) => {
+    if (!draggingEventId) return;
+    const idToMove = draggingEventId;
+    setDraggingEventId(null);
+    await moveEventToDatePersist(idToMove, dateObj);
+  };
+
+  const onEventDragEnd = () => {
+    setDraggingEventId(null);
   };
 
   return (
@@ -377,6 +499,12 @@ export default function KalendarDetalji() {
             <Link className="btn-outline btn-link" to="/kalendari">
               Nazad na moje kalendare
             </Link>
+
+            {draggingEventId && (
+              <span className="auth-subtitle" style={{ margin: 0 }}>
+                Prevlačiš događaj #{draggingEventId}…
+              </span>
+            )}
           </div>
 
           {loading && <p className="auth-subtitle calendar-loading">Učitavanje...</p>}
@@ -392,6 +520,10 @@ export default function KalendarDetalji() {
               parseBackendDate={parseBackendDate}
               toYMD={toYMD}
               getEventHeightPx={getEventHeightPx}
+              onEventDragStart={onEventDragStart}
+              onEventDragEnd={onEventDragEnd}
+              onDayDrop={onDayDrop}
+              draggingEventId={draggingEventId}
             />
           )}
 
@@ -408,7 +540,7 @@ export default function KalendarDetalji() {
             onClose={closeInfo}
             event={selectedEvent}
             onDelete={deleteEvent}
-            onExportICS={exportSingleEventICS}   // ✅ novi prop
+            onExportICS={exportSingleEventICS}
           />
         </div>
       </div>

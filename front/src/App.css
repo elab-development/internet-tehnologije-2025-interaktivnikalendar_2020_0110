@@ -1117,3 +1117,10 @@
     flex-wrap: wrap;
   }
 }
+.cal-event.is-dragging {
+  opacity: 0.6;
+}
+.cal-cell:has(.cal-event.is-dragging),
+.cal-week-col:has(.cal-event.is-dragging) {
+  outline: 2px dashed rgba(0,0,0,0.2);
+}

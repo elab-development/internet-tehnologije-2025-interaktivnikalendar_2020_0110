@@ -59,6 +59,12 @@ export default function CalendarView({
   parseBackendDate,
   toYMD,
   getEventHeightPx,
+
+  // ✅ NOVO (drag&drop):
+  onEventDragStart,
+  onEventDragEnd,
+  onDayDrop,
+  draggingEventId,
 }) {
   const todayKey = toYMD(new Date());
 
@@ -92,42 +98,68 @@ export default function CalendarView({
   const monthData = useMemo(() => makeMonthCells(viewDate, toYMD), [viewDate, toYMD]);
   const weekDays = useMemo(() => makeWeekDays(viewDate, toYMD), [viewDate, toYMD]);
 
-const renderEvent = (ev, dayKey) => {
-  const start = parseBackendDate(ev.pocetak);
+  const renderEvent = (ev, dayKey) => {
+    const start = parseBackendDate(ev.pocetak);
 
-  // ako je ceo_dan -> ne prikazuj time pill, samo chip
-  const time =
-    !ev.ceo_dan && start ? `${pad2(start.getHours())}:${pad2(start.getMinutes())}` : "";
+    const time =
+      !ev.ceo_dan && start ? `${pad2(start.getHours())}:${pad2(start.getMinutes())}` : "";
 
-  const title = ev.naziv || "Događaj";
-  const h = getEventHeightPx(ev);
+    const title = ev.naziv || "Događaj";
+    const h = getEventHeightPx(ev);
 
-  return (
-    <button
-      key={ev.id ?? `${dayKey}-${title}`}
-      type="button"
-      className={["cal-event", ev.ceo_dan ? "is-allday" : ""].join(" ")}
-      style={{ ["--evh"]: `${h}px` }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onEventClick(ev);
-      }}
-      title={title}
-    >
-      <span className="cal-event-left">
-        {/* time pill samo ako nije ceo_dan */}
-        {time && <span className="cal-event-time">{time}</span>}
-        <span className="cal-event-title">{title}</span>
-      </span>
+    const isDragging = draggingEventId != null && String(draggingEventId) === String(ev.id);
 
-     
-    </button>
-  );
-};
+    return (
+      <button
+        key={ev.id ?? `${dayKey}-${title}`}
+        type="button"
+        className={[
+          "cal-event",
+          ev.ceo_dan ? "is-allday" : "",
+          isDragging ? "is-dragging" : "",
+        ].join(" ")}
+        style={{ ["--evh"]: `${h}px` }}
+        title={title}
+        draggable
+        onDragStart={(e) => {
+          // dataTransfer kao fallback
+          try {
+            e.dataTransfer.setData("text/plain", String(ev.id));
+            e.dataTransfer.effectAllowed = "move";
+          } catch {}
+          onEventDragStart?.(ev.id);
+        }}
+        onDragEnd={() => onEventDragEnd?.()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onEventClick(ev);
+        }}
+      >
+        <span className="cal-event-left">
+          {time && <span className="cal-event-time">{time}</span>}
+          <span className="cal-event-title">{title}</span>
+        </span>
+      </button>
+    );
+  };
 
+  // helper: za drop na dan
+  const dayDropHandlers = (dateObj) => ({
+    onDragOver: (e) => {
+      // mora da se dozvoli drop
+      e.preventDefault();
+      try {
+        e.dataTransfer.dropEffect = "move";
+      } catch {}
+    },
+    onDrop: (e) => {
+      e.preventDefault(); 
+
+      onDayDrop?.(dateObj);
+    },
+  });
 
   if (layout === "week") {
-    // WEEK VIEW: 7 kolona
     return (
       <div className="cal-week">
         <div className="cal-week-head">
@@ -149,6 +181,7 @@ const renderEvent = (ev, dayKey) => {
                 key={d.key}
                 className={`cal-week-col ${d.key === todayKey ? "is-today" : ""}`}
                 onClick={() => onDayClick(d.date)}
+                {...dayDropHandlers(d.date)}
               >
                 <div className="cal-week-events">
                   {list.slice(0, 10).map((ev) => renderEvent(ev, d.key))}
@@ -183,6 +216,7 @@ const renderEvent = (ev, dayKey) => {
                 c.key === todayKey ? "is-today" : "",
               ].join(" ")}
               onClick={() => onDayClick(c.date)}
+              {...dayDropHandlers(c.date)}
             >
               <div className="cal-cell-top">
                 <span className="cal-daynum">{c.date.getDate()}</span>

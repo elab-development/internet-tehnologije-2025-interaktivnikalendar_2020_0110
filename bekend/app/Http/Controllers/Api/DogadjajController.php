@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\DogadjajKreiranMail;
 use App\Models\Dogadjaj;
 use App\Models\Kalendar;
+use App\Models\Notifikacija;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class DogadjajController extends Controller
@@ -14,7 +18,6 @@ class DogadjajController extends Controller
     {
         $userId = $request->user()->id;
 
-        // svi dogadjaji koji pripadaju kalendarima ulogovanog korisnika
         $dogadjaji = Dogadjaj::whereHas('kalendar', function ($q) use ($userId) {
                 $q->where('user_id', $userId);
             })
@@ -29,7 +32,8 @@ class DogadjajController extends Controller
     // POST /api/dogadjaji
     public function store(Request $request)
     {
-        $userId = $request->user()->id;
+        $user = $request->user();
+        $userId = $user->id;
 
         $validator = Validator::make(
             $request->all(),
@@ -73,7 +77,7 @@ class DogadjajController extends Controller
 
         $data = $validator->validated();
 
-        // Provera ownership-a: kalendar mora pripadati ulogovanom korisniku
+        // Ownership provera (kalendar mora pripadati ulogovanom korisniku)
         $kalendar = Kalendar::where('id', $data['kalendar_id'])
             ->where('user_id', $userId)
             ->first();
@@ -84,7 +88,7 @@ class DogadjajController extends Controller
             ], 403);
         }
 
-        // Dodatne logičke provere:
+        // logička provera vremena
         if (strtotime($data['kraj']) <= strtotime($data['pocetak'])) {
             return response()->json([
                 'message' => 'Validacija neuspešna.',
@@ -114,6 +118,7 @@ class DogadjajController extends Controller
             }
         }
 
+        // 1) Kreiranje događaja
         $dogadjaj = Dogadjaj::create([
             'kalendar_id' => $data['kalendar_id'],
             'naziv' => $data['naziv'],
@@ -130,6 +135,53 @@ class DogadjajController extends Controller
             'period_ponavljanja' => $data['period_ponavljanja'] ?? null,
             'ponavlja_se_do' => $data['ponavlja_se_do'] ?? null,
         ]);
+
+        // 2) Kreiranje notifikacije u bazi (status: na_cekanju)
+        $notifText = "Dodat događaj: {$dogadjaj->naziv} ({$dogadjaj->pocetak} - {$dogadjaj->kraj})";
+        $notifikacija = null;
+
+        try {
+            $notifikacija = Notifikacija::create([
+                'user_id' => $userId,
+                'dogadjaj_id' => $dogadjaj->id,
+                'kanal' => 'email',
+                'poslati_u' => now(),
+                'status' => 'na_cekanju',
+                'text' => $notifText,
+            ]);
+        } catch (\Throwable $e) {
+            // ne rušimo kreiranje događaja ako notifikacija ne uspe,
+            // ali logujemo jer je bitno za debug
+            Log::error("Notifikacija create failed for dogadjaj {$dogadjaj->id}: " . $e->getMessage());
+        }
+
+        // 3) Slanje email-a (Mailtrap)
+        // primaoc: kalendar->email (ako postoji) ili user email
+        $toEmail = $kalendar->email ?: $user->email;
+
+        try {
+            if ($toEmail) {
+                // ako imaš relation, možeš i $dogadjaj->load('kalendar');
+                Mail::to($toEmail)->send(new DogadjajKreiranMail($dogadjaj, $kalendar));
+            }
+
+            // update notifikacije: poslato
+            if ($notifikacija) {
+                $notifikacija->update([
+                    'status' => 'poslato',
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error("Mail send failed for dogadjaj {$dogadjaj->id}: " . $e->getMessage());
+
+            // update notifikacije: greska
+            if ($notifikacija) {
+                $notifikacija->update([
+                    'status' => 'greska',
+                    'text' => ($notifikacija->text ? $notifikacija->text . "\n" : "") . "Mail error: " . $e->getMessage(),
+                ]);
+            }
+        }
 
         return response()->json([
             'message' => 'Događaj je uspešno kreiran.',
@@ -212,7 +264,6 @@ class DogadjajController extends Controller
 
         $data = $validator->validated();
 
-        // Provera ownership-a: kalendar mora biti korisnikov
         $kalendar = Kalendar::where('id', $data['kalendar_id'])
             ->where('user_id', $userId)
             ->first();

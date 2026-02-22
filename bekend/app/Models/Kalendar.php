@@ -10,6 +10,7 @@ class Kalendar extends Model
        protected $fillable = [
         'user_id',
         'naziv',
+         'email'
     ];
     public function korisnik()
     {

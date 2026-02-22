@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AdminStatsController;
+use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DogadjajController;
 use App\Http\Controllers\Api\KalendarController;
@@ -42,6 +44,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     Route::apiResource('notifikacije', NotifikacijaController::class);
+
+
+    //admin
+      Route::get('/stats/summary', [AdminStatsController::class, 'summary']);
+    Route::get('/stats/users-over-time', [AdminStatsController::class, 'usersOverTime']);
+    Route::get('/stats/events-over-time', [AdminStatsController::class, 'eventsOverTime']);
+    Route::get('/stats/notifications-by-status', [AdminStatsController::class, 'notificationsByStatus']);
+
+    Route::get('/users', [AdminUserController::class, 'index']);
+    Route::get('/users/{id}', [AdminUserController::class, 'show']);
+    Route::put('/users/{id}', [AdminUserController::class, 'update']);
+    Route::delete('/users/{id}', [AdminUserController::class, 'destroy']);
 });
 
 

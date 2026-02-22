@@ -6,7 +6,7 @@ import FormInput from "../../komponente/FormInput/FormInput";
 export default function Login() {
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ email: "test22@test.com", password: "123456" });
+  const [form, setForm] = useState({ email: "marko@test.com", password: "123456" });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 

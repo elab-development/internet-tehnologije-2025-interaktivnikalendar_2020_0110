@@ -24,16 +24,6 @@ function monthLabel(date) {
   return date.toLocaleDateString("sr-RS", { month: "long", year: "numeric" });
 }
 
-function weekLabel(date) {
-  // label tipa: 08.02.2026. — 14.02.2026.
-  const start = startOfWeek(date);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-
-  const fmt = (d) => `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}.`;
-  return `${fmt(start)} — ${fmt(end)}`;
-}
-
 function startOfWeek(date) {
   // ponedeljak kao start
   const d = new Date(date);
@@ -42,6 +32,16 @@ function startOfWeek(date) {
   const offset = (jsDay + 6) % 7; // pon=0
   d.setDate(d.getDate() - offset);
   return d;
+}
+
+function weekLabel(date) {
+  // label tipa: 08.02.2026. — 14.02.2026.
+  const start = startOfWeek(date);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  const fmt = (d) => `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}.`;
+  return `${fmt(start)} — ${fmt(end)}`;
 }
 
 function clamp(n, min, max) {
@@ -65,6 +65,136 @@ function getEventHeightPx(ev) {
   return clamp(px, 28, 90);
 }
 
+/** ===== ICS helpers ===== **/
+
+function escapeICSText(value) {
+  if (value == null) return "";
+  return String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\r\n|\n|\r/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
+}
+
+function formatICSLocal(date) {
+  // "local floating time" (bez Z): YYYYMMDDTHHMMSS
+  return (
+    `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}` +
+    `T${pad2(date.getHours())}${pad2(date.getMinutes())}${pad2(date.getSeconds())}`
+  );
+}
+
+function formatICSUTC(date) {
+  // UTC: YYYYMMDDTHHMMSSZ
+  const d = new Date(date.getTime());
+  return (
+    `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}` +
+    `T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`
+  );
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function buildVEvent(ev, { calendarName = "Kalendar", calendarId = "" } = {}) {
+  const title = ev?.naziv ?? ev?.title ?? "Događaj";
+  const description = ev?.opis ?? ev?.description ?? "";
+  const location = ev?.lokacija ?? ev?.location ?? "";
+
+  const start = parseBackendDate(ev?.pocetak);
+  const end = parseBackendDate(ev?.kraj);
+
+  const uid = escapeICSText(`${calendarId || "cal"}-${ev?.id ?? title}-${ev?.pocetak ?? ""}@app`);
+  const dtstamp = formatICSUTC(new Date());
+
+  const isAllDay = !!ev?.ceo_dan;
+
+  let dtstartLine = "";
+  let dtendLine = "";
+
+  if (isAllDay) {
+    if (!start) return "";
+
+    const ymd = `${start.getFullYear()}${pad2(start.getMonth() + 1)}${pad2(start.getDate())}`;
+    dtstartLine = `DTSTART;VALUE=DATE:${ymd}`;
+
+    let endDate = end ? new Date(end) : new Date(start);
+    endDate.setHours(0, 0, 0, 0);
+
+    const startDate = new Date(start);
+    startDate.setHours(0, 0, 0, 0);
+
+    if (!end || endDate.getTime() <= startDate.getTime()) {
+      endDate = addDays(startDate, 1);
+    } else {
+      endDate = addDays(endDate, 1);
+    }
+
+    const endYMD = `${endDate.getFullYear()}${pad2(endDate.getMonth() + 1)}${pad2(endDate.getDate())}`;
+    dtendLine = `DTEND;VALUE=DATE:${endYMD}`;
+  } else {
+    if (!start) return "";
+
+    dtstartLine = `DTSTART:${formatICSLocal(start)}`;
+
+    const endFixed =
+      end && end.getTime() >= start.getTime()
+        ? end
+        : new Date(start.getTime() + 60 * 60 * 1000);
+
+    dtendLine = `DTEND:${formatICSLocal(endFixed)}`;
+  }
+
+  const lines = [
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${dtstamp}`,
+    `SUMMARY:${escapeICSText(title)}`,
+    description ? `DESCRIPTION:${escapeICSText(description)}` : null,
+    location ? `LOCATION:${escapeICSText(location)}` : null,
+    dtstartLine,
+    dtendLine,
+    `CATEGORIES:${escapeICSText(calendarName)}`,
+    "END:VEVENT",
+  ].filter(Boolean);
+
+  return lines.join("\r\n");
+}
+
+function buildICS(events, { calendarName = "Kalendar", calendarId = "" } = {}) {
+  const header = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//TeachifyApp//Kalendar Export//SR",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    `X-WR-CALNAME:${escapeICSText(calendarName)}`,
+  ].join("\r\n");
+
+  const body = (events || [])
+    .map((ev) => buildVEvent(ev, { calendarName, calendarId }))
+    .filter(Boolean)
+    .join("\r\n");
+
+  const footer = "END:VCALENDAR";
+  return [header, body, footer].filter((x) => x !== "").join("\r\n") + "\r\n";
+}
+
+function downloadTextFile(filename, content, mime = "text/calendar;charset=utf-8") {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function KalendarDetalji() {
   const { id } = useParams();
 
@@ -72,20 +202,15 @@ export default function KalendarDetalji() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  // layout: "month" | "week"
   const [layout, setLayout] = useState("month");
-
-  // "anchor" datum za prikaz (za mesec: prvi u mesecu, za nedelju: bilo koji u toj nedelji)
   const [viewDate, setViewDate] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  // CREATE modal
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
 
-  // INFO modal
   const [infoOpen, setInfoOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
@@ -132,13 +257,11 @@ export default function KalendarDetalji() {
     }
   };
 
-  // Klik na dan -> otvori CREATE modal
   const onDayClick = (dateObj) => {
     setSelectedDate(dateObj);
     setCreateOpen(true);
   };
 
-  // Klik na event -> otvori INFO modal (bez edit)
   const onEventClick = (ev) => {
     setSelectedEvent(ev);
     setInfoOpen(true);
@@ -178,6 +301,27 @@ export default function KalendarDetalji() {
 
   const headerLabel = layout === "week" ? weekLabel(viewDate) : monthLabel(viewDate);
 
+  const calendarName = useMemo(() => `Kalendar #${id}`, [id]);
+
+  const exportAllICS = () => {
+    const ics = buildICS(events, { calendarName, calendarId: id });
+    downloadTextFile(`kalendar-${id}.ics`, ics);
+  };
+ 
+  const exportSingleEventICS = (ev) => {
+    const ics = buildICS([ev], { calendarName, calendarId: id });
+
+    const titleSafe = (ev?.naziv ?? ev?.title ?? "dogadjaj")
+      .toString()
+      .trim()
+      .replace(/[^\p{L}\p{N}\-_ ]/gu, "");
+
+    const key = ev?.id ?? titleSafe;
+    const fileKey = key || "1";
+
+    downloadTextFile(`dogadjaj-${fileKey}.ics`, ics);
+  };
+
   return (
     <div className="page">
       <div className="auth-wrap">
@@ -193,29 +337,26 @@ export default function KalendarDetalji() {
             </div>
 
             <div className="cal-actions">
-              {/* layout switch */}
               <div className="cal-switch">
                 <button
                   type="button"
                   className={`cal-switch-btn ${layout === "month" ? "active" : ""}`}
                   onClick={() => {
                     setLayout("month");
-                    // za mesec je lepše da je viewDate na 1. u mesecu
                     setViewDate((d) => new Date(d.getFullYear(), d.getMonth(), 1));
                   }}
                 >
                   Mesec
                 </button>
                 <button
-                type="button"
-                className={`cal-switch-btn ${layout === "week" ? "active" : ""}`}
-                onClick={() => {
+                  type="button"
+                  className={`cal-switch-btn ${layout === "week" ? "active" : ""}`}
+                  onClick={() => {
                     setLayout("week");
-                    // kada pređeš na nedelju, idi na današnji dan (tj. današnju nedelju)
                     setViewDate(new Date());
-                }}
+                  }}
                 >
-                Nedelja
+                  Nedelja
                 </button>
               </div>
 
@@ -225,10 +366,14 @@ export default function KalendarDetalji() {
               <button className="btn-outline" type="button" onClick={next}>
                 Sledeći →
               </button>
+
+              <button className="btn-outline" type="button" onClick={exportAllICS} title="Export svih događaja u .ics">
+                Export .ics
+              </button>
             </div>
           </div>
 
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
             <Link className="btn-outline btn-link" to="/kalendari">
               Nazad na moje kalendare
             </Link>
@@ -250,7 +395,6 @@ export default function KalendarDetalji() {
             />
           )}
 
-          {/* CREATE modal */}
           <EventModal
             open={createOpen}
             onClose={closeCreate}
@@ -259,12 +403,12 @@ export default function KalendarDetalji() {
             onSubmit={createEvent}
           />
 
-          {/* INFO modal */}
           <EventInfoModal
             open={infoOpen}
             onClose={closeInfo}
             event={selectedEvent}
             onDelete={deleteEvent}
+            onExportICS={exportSingleEventICS}   // ✅ novi prop
           />
         </div>
       </div>

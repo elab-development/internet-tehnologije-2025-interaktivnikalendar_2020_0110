@@ -36,16 +36,13 @@ function durationText(start, end) {
   return `${h} h ${m} min`;
 }
 
-export default function EventInfoModal({ open, onClose, event, onDelete }) {
+export default function EventInfoModal({ open, onClose, event, onDelete, onExportICS }) {
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState("");
 
   const start = useMemo(() => parseBackendDate(event?.pocetak), [event?.pocetak]);
   const end = useMemo(() => parseBackendDate(event?.kraj), [event?.kraj]);
 
-  // ✅ reset stanja svaki put kad:
-  // - otvoriš modal
-  // - promeniš event
   useEffect(() => {
     if (!open) return;
     setDeleting(false);
@@ -55,6 +52,7 @@ export default function EventInfoModal({ open, onClose, event, onDelete }) {
   if (!open || !event) return null;
 
   const title = event.naziv || "Događaj";
+  const isAllDay = !!event.ceo_dan;
 
   const handleDelete = async () => {
     if (!event?.id) return;
@@ -81,7 +79,10 @@ export default function EventInfoModal({ open, onClose, event, onDelete }) {
     }
   };
 
-  const isAllDay = !!event.ceo_dan;
+  const handleExport = () => {
+    if (!onExportICS) return;
+    onExportICS(event);
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -103,45 +104,36 @@ export default function EventInfoModal({ open, onClose, event, onDelete }) {
 
         <div className="modal-inner">
           <div className="info-grid">
-            {/* Datum */}
             <div className="info-row">
               <div className="info-label">Datum</div>
               <div className="info-value">{formatDate(start) !== "—" ? formatDate(start) : "—"}</div>
             </div>
 
-            {/* Trajanje */}
             <div className="info-row">
               <div className="info-label">Trajanje</div>
-              <div className="info-value">
-                {isAllDay ? "Ceo dan" : durationText(start, end)}
-              </div>
+              <div className="info-value">{isAllDay ? "Ceo dan" : durationText(start, end)}</div>
             </div>
 
-            {/* Vreme početka */}
             <div className="info-row">
               <div className="info-label">Početak</div>
               <div className="info-value">{isAllDay ? "—" : formatTime(start)}</div>
             </div>
 
-            {/* Vreme završetka */}
             <div className="info-row">
               <div className="info-label">Kraj</div>
               <div className="info-value">{isAllDay ? "—" : formatTime(end)}</div>
             </div>
 
-            {/* Lokacija */}
             <div className="info-row">
               <div className="info-label">Lokacija</div>
               <div className="info-value">{event.lokacija || "—"}</div>
             </div>
 
-            {/* Status */}
             <div className="info-row">
               <div className="info-label">Status</div>
               <div className="info-value">{event.status || "planirano"}</div>
             </div>
 
-            {/* Opis */}
             <div className="info-row info-span-2">
               <div className="info-label">Opis</div>
               <div className="info-value info-desc">{event.opis || "—"}</div>
@@ -153,12 +145,18 @@ export default function EventInfoModal({ open, onClose, event, onDelete }) {
               Zatvori
             </button>
 
+           
             <button
-              className="btn-danger"
+              className="btn-outline"
               type="button"
-              onClick={handleDelete}
-              disabled={deleting}
+              onClick={handleExport}
+              disabled={!onExportICS}
+              title={!onExportICS ? "Export nije prosleđen u modal" : "Preuzmi .ics fajl za ovaj događaj"}
             >
+              Export .ics
+            </button>
+
+            <button className="btn-danger" type="button" onClick={handleDelete} disabled={deleting}>
               {deleting ? "Brisanje..." : "Obriši"}
             </button>
           </div>

@@ -20,7 +20,7 @@ function parseBackendDate(s) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/**  Backend format: YYYY-MM-DD HH:mm:ss */
+/** Backend format: YYYY-MM-DD HH:mm:ss */
 function toBackendString(d) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(
     d.getMinutes()
@@ -34,8 +34,8 @@ function monthLabel(date) {
 function startOfWeek(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
-  const jsDay = d.getDay(); // 0..6 (ned..sub)
-  const offset = (jsDay + 6) % 7; // pon=0
+  const jsDay = d.getDay();
+  const offset = (jsDay + 6) % 7;
   d.setDate(d.getDate() - offset);
   return d;
 }
@@ -65,7 +65,7 @@ function getEventHeightPx(ev) {
   return clamp(px, 28, 90);
 }
 
-/** ===== ICS helpers ===== **/
+/** ===== ICS helpers (ostaje kao kod tebe) ===== **/
 
 function escapeICSText(value) {
   if (value == null) return "";
@@ -125,17 +125,13 @@ function buildVEvent(ev, { calendarName = "Kalendar", calendarId = "" } = {}) {
     const startDate = new Date(start);
     startDate.setHours(0, 0, 0, 0);
 
-    if (!end || endDate.getTime() <= startDate.getTime()) {
-      endDate = addDays(startDate, 1);
-    } else {
-      endDate = addDays(endDate, 1);
-    }
+    if (!end || endDate.getTime() <= startDate.getTime()) endDate = addDays(startDate, 1);
+    else endDate = addDays(endDate, 1);
 
     const endYMD = `${endDate.getFullYear()}${pad2(endDate.getMonth() + 1)}${pad2(endDate.getDate())}`;
     dtendLine = `DTEND;VALUE=DATE:${endYMD}`;
   } else {
     if (!start) return "";
-
     dtstartLine = `DTSTART:${formatICSLocal(start)}`;
 
     const endFixed =
@@ -177,8 +173,7 @@ function buildICS(events, { calendarName = "Kalendar", calendarId = "" } = {}) {
     .filter(Boolean)
     .join("\r\n");
 
-  const footer = "END:VCALENDAR";
-  return [header, body, footer].filter((x) => x !== "").join("\r\n") + "\r\n";
+  return [header, body, "END:VCALENDAR"].join("\r\n") + "\r\n";
 }
 
 function downloadTextFile(filename, content, mime = "text/calendar;charset=utf-8") {
@@ -193,27 +188,19 @@ function downloadTextFile(filename, content, mime = "text/calendar;charset=utf-8
   URL.revokeObjectURL(url);
 }
 
-/** Normalizacija repeat polja da Laravel validacija ne pukne */
 function normalizeRepeat(ev) {
   const ponavljajuci = !!ev?.ponavljajuci;
 
   if (!ponavljajuci) {
-    return {
-      ponavljajuci: false,
-      period_ponavljanja: null,
-      ponavlja_se_do: null,
-    };
+    return { ponavljajuci: false, period_ponavljanja: null, ponavlja_se_do: null };
   }
 
   const raw = (ev?.period_ponavljanja ?? "").toString().trim().toLowerCase();
-
   const map = {
     dnevno: "dnevno",
     nedeljno: "nedeljno",
     mesecno: "mesecno",
     godisnje: "godisnje",
-
-    // često FE/DB varijante
     daily: "dnevno",
     weekly: "nedeljno",
     monthly: "mesecno",
@@ -224,16 +211,10 @@ function normalizeRepeat(ev) {
 
   const period = map[raw] ?? null;
 
-  // ponavlja_se_do treba da bude date; ako dolazi kao string - ostavi, ako je Date - formatiraj
   let ponavljaSeDo = ev?.ponavlja_se_do ?? null;
-  if (ponavljaSeDo instanceof Date) {
-    ponavljaSeDo = toBackendString(ponavljaSeDo);
-  } else if (typeof ponavljaSeDo === "string") {
-    ponavljaSeDo = ponavljaSeDo.trim() || null;
-  }
+  if (ponavljaSeDo instanceof Date) ponavljaSeDo = toBackendString(ponavljaSeDo);
+  else if (typeof ponavljaSeDo === "string") ponavljaSeDo = ponavljaSeDo.trim() || null;
 
-  // Ako je ponavljajući, a period nije dobar -> POŠALJI null da vidimo tačnu backend grešku u UI (ili setuj default)
-  // Ja ovde stavljam default "nedeljno" da DnD ne puca.
   return {
     ponavljajuci: true,
     period_ponavljanja: period ?? "nedeljno",
@@ -241,10 +222,68 @@ function normalizeRepeat(ev) {
   };
 }
 
+/** ===== Holidays ===== */
+
+async function fetchSerbiaHolidays(year, { timeoutMs = 12000 } = {}) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const url = `https://date.nager.at/api/v3/PublicHolidays/${year}/RS`;
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`Holiday API HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (!Array.isArray(data)) return [];
+
+    return data
+      .map((h) => {
+        const dateStr = h?.date;
+        if (!dateStr) return null;
+
+        const start = new Date(`${dateStr}T00:00:00`);
+        const end = new Date(`${dateStr}T00:00:00`);
+        end.setDate(end.getDate() + 1);
+
+        const name = h?.localName || h?.name || "Praznik";
+
+        return {
+          id: `holiday-${year}-${dateStr}-${String(name).slice(0, 30)}`,
+          naziv: name,
+          opis: "Državni/verski praznik (automatski učitan).",
+          lokacija: null,
+          pocetak: toBackendString(start),
+          kraj: toBackendString(end),
+          ceo_dan: true,
+          status: "praznik",
+          locked: true,
+          source: "holiday",
+        };
+      })
+      .filter(Boolean);
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function uniqById(list) {
+  const map = new Map();
+  for (const x of list || []) {
+    const k = String(x?.id ?? "");
+    if (!k) continue;
+    if (!map.has(k)) map.set(k, x);
+  }
+  return Array.from(map.values());
+}
+
 export default function KalendarDetalji() {
   const { id } = useParams();
 
-  const [events, setEvents] = useState([]);
+  const [serverEvents, setServerEvents] = useState([]);
+  const [holidayEvents, setHolidayEvents] = useState([]);
+
+  const events = useMemo(() => uniqById([...serverEvents, ...holidayEvents]), [serverEvents, holidayEvents]);
+
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -262,6 +301,10 @@ export default function KalendarDetalji() {
 
   const [draggingEventId, setDraggingEventId] = useState(null);
 
+  const calendarName = useMemo(() => `Kalendar #${id}`, [id]);
+
+  const [holidayYearsLoaded, setHolidayYearsLoaded] = useState(() => new Set());
+
   const load = async () => {
     setLoading(true);
     setMessage("");
@@ -269,7 +312,7 @@ export default function KalendarDetalji() {
     try {
       const res = await api.get(`/kalendari/${id}/dogadjaji`);
       const list = res.data.data || [];
-      setEvents(list);
+      setServerEvents(list);
       if (list.length === 0) setMessage(res.data.message || "");
     } catch (err) {
       setMessage(err.response?.data?.message || "Greška pri učitavanju događaja.");
@@ -283,6 +326,36 @@ export default function KalendarDetalji() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  const ensureHolidaysForYears = async (years) => {
+    const toLoad = (years || []).filter((y) => !holidayYearsLoaded.has(y));
+    if (toLoad.length === 0) return;
+
+    try {
+      const results = await Promise.all(toLoad.map((y) => fetchSerbiaHolidays(y)));
+      const holidayList = results.flat();
+      setHolidayEvents((prev) => uniqById([...prev, ...holidayList]));
+
+      setHolidayYearsLoaded((prev) => {
+        const next = new Set(prev);
+        for (const y of toLoad) next.add(y);
+        return next;
+      });
+    } catch {
+      setMessage((m) => m || "Nisam uspela da učitam praznike (Holiday API).");
+    }
+  };
+
+  useEffect(() => {
+    const year = viewDate.getFullYear();
+    const years =
+      layout === "month"
+        ? [year]
+        : [year, new Date(viewDate.getTime() + 7 * 86400000).getFullYear()];
+
+    ensureHolidaysForYears(Array.from(new Set(years)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout, viewDate]);
+
   const createEvent = async (payload) => {
     try {
       await api.post("/dogadjaji", payload);
@@ -295,6 +368,12 @@ export default function KalendarDetalji() {
   };
 
   const deleteEvent = async (eventId) => {
+    const ev = events.find((x) => String(x.id) === String(eventId));
+    if (ev?.locked) {
+      setMessage("Ovaj događaj je praznik i ne može se obrisati.");
+      return false;
+    }
+
     try {
       await api.delete(`/dogadjaji/${eventId}`);
       await load();
@@ -348,7 +427,6 @@ export default function KalendarDetalji() {
   };
 
   const headerLabel = layout === "week" ? weekLabel(viewDate) : monthLabel(viewDate);
-  const calendarName = useMemo(() => `Kalendar #${id}`, [id]);
 
   const exportAllICS = () => {
     const ics = buildICS(events, { calendarName, calendarId: id });
@@ -357,21 +435,19 @@ export default function KalendarDetalji() {
 
   const exportSingleEventICS = (ev) => {
     const ics = buildICS([ev], { calendarName, calendarId: id });
-
-    const titleSafe = (ev?.naziv ?? ev?.title ?? "dogadjaj")
-      .toString()
-      .trim()
-      .replace(/[^\p{L}\p{N}\-_ ]/gu, "");
-
+    const titleSafe = (ev?.naziv ?? ev?.title ?? "dogadjaj").toString().trim().replace(/[^\p{L}\p{N}\-_ ]/gu, "");
     const key = ev?.id ?? titleSafe;
-    const fileKey = key || "1";
-
-    downloadTextFile(`dogadjaj-${fileKey}.ics`, ics);
+    downloadTextFile(`dogadjaj-${key || "1"}.ics`, ics);
   };
 
   const moveEventToDatePersist = async (eventId, targetDate) => {
     const ev = events.find((x) => String(x.id) === String(eventId));
     if (!ev) return;
+
+    if (ev.locked) {
+      setMessage("Ovaj događaj je praznik i ne može se pomerati.");
+      return;
+    }
 
     const s = parseBackendDate(ev.pocetak);
     const e = parseBackendDate(ev.kraj);
@@ -389,10 +465,9 @@ export default function KalendarDetalji() {
     const newStartStr = toBackendString(newStart);
     const newEndStr = toBackendString(newEnd);
 
-    const prevEvents = [...events];
+    const prevServer = [...serverEvents];
 
-    // optimistic UI
-    setEvents((prev) =>
+    setServerEvents((prev) =>
       prev.map((x) =>
         String(x.id) === String(eventId) ? { ...x, pocetak: newStartStr, kraj: newEndStr } : x
       )
@@ -410,7 +485,6 @@ export default function KalendarDetalji() {
         kraj: newEndStr,
         ceo_dan: !!ev.ceo_dan,
         status: ev.status ?? "planirano",
- 
         ponavljajuci: repeat.ponavljajuci,
         period_ponavljanja: repeat.period_ponavljanja,
         ponavlja_se_do: repeat.ponavlja_se_do,
@@ -419,17 +493,17 @@ export default function KalendarDetalji() {
       await api.put(`/dogadjaji/${eventId}`, payload);
       setMessage("");
     } catch (err) {
-      console.error("PUT /dogadjaji failed:", err.response?.data || err);
-
       const firstError =
         err.response?.data?.errors ? Object.values(err.response.data.errors)?.[0]?.[0] : null;
 
       setMessage(firstError || err.response?.data?.message || "Greška pri čuvanju promene (drag & drop).");
-      setEvents(prevEvents);
+      setServerEvents(prevServer);
     }
   };
 
   const onEventDragStart = (eventId) => {
+    const ev = events.find((x) => String(x.id) === String(eventId));
+    if (ev?.locked) return;
     setDraggingEventId(eventId);
   };
 

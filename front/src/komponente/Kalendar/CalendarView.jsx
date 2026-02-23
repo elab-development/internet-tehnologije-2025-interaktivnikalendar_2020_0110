@@ -59,8 +59,6 @@ export default function CalendarView({
   parseBackendDate,
   toYMD,
   getEventHeightPx,
-
-  // ✅ NOVO (drag&drop):
   onEventDragStart,
   onEventDragEnd,
   onDayDrop,
@@ -68,7 +66,6 @@ export default function CalendarView({
 }) {
   const todayKey = toYMD(new Date());
 
-  // map: YYYY-MM-DD -> [events]
   const eventsByDay = useMemo(() => {
     const map = new Map();
     for (const ev of events) {
@@ -79,12 +76,15 @@ export default function CalendarView({
       map.get(key).push(ev);
     }
 
-    // sort inside each day: ceo_dan prvo, pa po pocetku
     for (const [, list] of map.entries()) {
       list.sort((a, b) => {
         const ac = a.ceo_dan ? 1 : 0;
         const bc = b.ceo_dan ? 1 : 0;
         if (ac !== bc) return bc - ac;
+
+        const al = a.locked ? 1 : 0;
+        const bl = b.locked ? 1 : 0;
+        if (al !== bl) return bl - al;
 
         const da = parseBackendDate(a.pocetak)?.getTime() ?? 0;
         const db = parseBackendDate(b.pocetak)?.getTime() ?? 0;
@@ -108,6 +108,7 @@ export default function CalendarView({
     const h = getEventHeightPx(ev);
 
     const isDragging = draggingEventId != null && String(draggingEventId) === String(ev.id);
+    const locked = !!ev.locked;
 
     return (
       <button
@@ -116,13 +117,17 @@ export default function CalendarView({
         className={[
           "cal-event",
           ev.ceo_dan ? "is-allday" : "",
+          locked ? "is-locked" : "",
           isDragging ? "is-dragging" : "",
         ].join(" ")}
         style={{ ["--evh"]: `${h}px` }}
-        title={title}
-        draggable
+        title={locked ? `${title} (zaključano)` : title}
+        draggable={!locked}
         onDragStart={(e) => {
-          // dataTransfer kao fallback
+          if (locked) {
+            e.preventDefault();
+            return;
+          }
           try {
             e.dataTransfer.setData("text/plain", String(ev.id));
             e.dataTransfer.effectAllowed = "move";
@@ -143,18 +148,15 @@ export default function CalendarView({
     );
   };
 
-  // helper: za drop na dan
   const dayDropHandlers = (dateObj) => ({
     onDragOver: (e) => {
-      // mora da se dozvoli drop
       e.preventDefault();
       try {
         e.dataTransfer.dropEffect = "move";
       } catch {}
     },
     onDrop: (e) => {
-      e.preventDefault(); 
-
+      e.preventDefault();
       onDayDrop?.(dateObj);
     },
   });
@@ -195,7 +197,6 @@ export default function CalendarView({
     );
   }
 
-  // MONTH VIEW
   return (
     <div className="cal-month">
       <div className="cal-grid">

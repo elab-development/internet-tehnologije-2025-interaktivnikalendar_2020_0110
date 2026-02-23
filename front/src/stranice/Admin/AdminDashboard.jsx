@@ -3,116 +3,123 @@ import { Link } from "react-router-dom";
 import api from "../../api/axios";
 import "./Admin.css";
 
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
+/**
+ * Google Charts loader (učita se jednom po stranici)
+ */
+function loadGoogleCharts() {
+  return new Promise((resolve, reject) => {
+    if (window.google?.charts) {
+      resolve();
+      return;
+    }
+
+    const existing = document.querySelector('script[data-google-charts="1"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () => reject(new Error("Google Charts load failed")));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://www.gstatic.com/charts/loader.js";
+    script.async = true;
+    script.dataset.googleCharts = "1";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Google Charts load failed"));
+    document.body.appendChild(script);
+  });
 }
 
-function formatDateLabel(ymd) {
-  if (!ymd) return "";
-  const [y, m, d] = ymd.split("-");
-  return `${d}.${m}.`;
-}
+/**
+ * Google Line Chart komponenta (API za vizualizaciju)
+ */
+function GoogleLineChart({ labels, values }) {
+  const chartId = "google-line-chart";
 
-function pickNiceTicks(maxVal) {
-  if (maxVal <= 0) return [0, 1, 2, 3, 4];
-  const step = Math.ceil(maxVal / 4);
-  return [0, step, step * 2, step * 3, step * 4];
-}
+  const rows = useMemo(() => {
+    const l = labels || [];
+    const v = values || [];
+    return l.map((label, i) => [String(label), Number(v[i] || 0)]);
+  }, [labels, values]);
 
-function LineChart({ labels, values, height = 180 }) {
-  const width = 920;
-  const padding = 28;
+  useEffect(() => {
+    let cancelled = false;
 
-  const maxVal = Math.max(0, ...(values || []));
-  const ticks = pickNiceTicks(maxVal);
+    const draw = async () => {
+      try {
+        await loadGoogleCharts();
+        if (cancelled) return;
 
-  const points = useMemo(() => {
-    const n = values?.length || 0;
-    if (!n) return [];
+        window.google.charts.load("current", { packages: ["corechart"] });
+        window.google.charts.setOnLoadCallback(() => {
+          if (cancelled) return;
 
-    const usableW = width - padding * 2;
-    const usableH = height - padding * 2;
+          const data = new window.google.visualization.DataTable();
+          data.addColumn("string", "Datum");
+          data.addColumn("number", "Broj korisnika");
 
-    const xStep = n === 1 ? 0 : usableW / (n - 1);
+          if (rows.length) data.addRows(rows);
 
-    return values.map((v, i) => {
-      const x = padding + i * xStep;
-      const yNorm = maxVal === 0 ? 0 : v / maxVal;
-      const y = padding + (1 - yNorm) * usableH;
-      return { x, y, v };
-    });
-  }, [values, height, maxVal]);
+          const firstLabel = labels?.[0] || "";
+          const lastLabel = labels?.[labels.length - 1] || "";
 
-  const pathD = useMemo(() => {
-    if (!points.length) return "";
-    return points
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-      .join(" ");
-  }, [points]);
+          const options = {
+            title: `Korisnici kroz vreme (${firstLabel} — ${lastLabel})`,
+            curveType: "function",
+            legend: { position: "bottom" },
+            height: 320,
+            chartArea: { left: 50, top: 60, right: 20, bottom: 60 },
+            pointSize: 5,
+          };
 
-  const lastLabel = labels?.[labels.length - 1] || "";
-  const firstLabel = labels?.[0] || "";
+          const el = document.getElementById(chartId);
+          if (!el) return;
+
+          const chart = new window.google.visualization.LineChart(el);
+          chart.draw(data, options);
+        });
+      } catch {
+        // ako ne uspe loader, samo ostavi fallback poruku (dole)
+      }
+    };
+
+    draw();
+
+    const onResize = () => {
+      // minimalno: samo ponovo nacrtaj na resize
+      draw();
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("resize", onResize);
+    };
+  }, [chartId, rows, labels]);
 
   return (
     <div className="admin-chart">
       <div className="admin-chart-head">
         <div>
           <div className="admin-chart-title">Korisnici kroz vreme</div>
-          <div className="admin-chart-sub">{firstLabel} — {lastLabel}</div>
+          <div className="admin-chart-sub">
+            Vizualizacija pomoću Google Charts API
+          </div>
         </div>
 
         <div className="admin-chart-legend">
-          <span className="admin-chip">linija</span>
-          <span className="admin-chip">po danu</span>
+          <span className="admin-chip">Google</span>
+          <span className="admin-chip">Line chart</span>
         </div>
       </div>
 
       <div className="admin-chart-body">
-        {!points.length ? (
+        {!rows.length ? (
           <div className="admin-muted" style={{ padding: 14 }}>
             Nema podataka za prikaz.
           </div>
         ) : (
-          <svg
-            viewBox={`0 0 ${width} ${height}`}
-            width="100%"
-            height={height}
-            role="img"
-            aria-label="Line chart"
-          >
-            {ticks.map((t) => {
-              const yNorm = maxVal === 0 ? 0 : t / maxVal;
-              const y = padding + (1 - yNorm) * (height - padding * 2);
-              return (
-                <g key={t}>
-                  <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(17,24,39,0.10)" />
-                  <text x={6} y={y + 4} fontSize="12" fill="#6b7280">
-                    {t}
-                  </text>
-                </g>
-              );
-            })}
-
-            <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="rgba(17,24,39,0.14)" />
-            <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="rgba(17,24,39,0.14)" />
-
-            <path d={pathD} fill="none" stroke="#111827" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-
-            {points.map((p, idx) => (
-              <circle key={idx} cx={p.x} cy={p.y} r="4" fill="#111827" />
-            ))}
-
-            {labels?.length ? (
-              <>
-                <text x={padding} y={height - 6} fontSize="12" fill="#6b7280">
-                  {formatDateLabel(labels[0])}
-                </text>
-                <text x={width - padding} y={height - 6} fontSize="12" fill="#6b7280" textAnchor="end">
-                  {formatDateLabel(labels[labels.length - 1])}
-                </text>
-              </>
-            ) : null}
-          </svg>
+          <div id={chartId} style={{ width: "100%" }} />
         )}
       </div>
     </div>
@@ -285,12 +292,12 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="admin-muted" style={{ marginTop: 10 }}>
-                    Linijski graf pokazuje koliko je korisnika registrovano po danu.
+                    Linijski graf pokazuje koliko je korisnika registrovano po danu (Google Charts API).
                   </div>
                 </div>
               </div>
 
-              <LineChart labels={line.labels} values={line.values} />
+              <GoogleLineChart labels={line.labels} values={line.values} />
             </>
           )}
         </div>

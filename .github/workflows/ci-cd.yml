@@ -4,9 +4,9 @@ name: Backend CI-CD
 # Kada se pokreće
 on:
   push:
-    branches: ["main"]        # svaki push na main
+    branches: ["main"]
   pull_request:
-    branches: ["main"]        # svaki PR ka main
+    branches: ["main"]
 
 # Dozvole za čitanje koda i push Docker image-a u GHCR
 permissions:
@@ -19,7 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   # =========================
   # 1. BACKEND TESTOVI
   # =========================
@@ -44,8 +43,8 @@ jobs:
 
     defaults:
       run:
-        # Folder gde je Laravel projekat (promeni ako treba)
-        working-directory: backend
+        # OVDE je bitno: folder se zove "bekend"
+        working-directory: bekend
 
     steps:
       - name: Checkout code
@@ -64,9 +63,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            backend/vendor
+            bekend/vendor
             ~/.composer/cache/files
-          key: composer-${{ runner.os }}-${{ hashFiles('backend/composer.lock') }}
+          key: composer-${{ runner.os }}-${{ hashFiles('bekend/composer.lock') }}
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
@@ -102,7 +101,6 @@ jobs:
           DB_PASSWORD: root
         run: php artisan test
 
-
   # =========================
   # 2. DOCKER BUILD
   # =========================
@@ -135,8 +133,9 @@ jobs:
       - name: Build & push backend
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          # Bitno: context i Dockerfile putanje su iz "bekend"
+          context: ./bekend
+          file: ./bekend/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/kalendar-backend:latest

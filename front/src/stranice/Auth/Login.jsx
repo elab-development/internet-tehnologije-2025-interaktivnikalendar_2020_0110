@@ -24,9 +24,16 @@ export default function Login() {
       const res = await api.post("/login", form);
 
       localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+        localStorage.setItem("user", JSON.stringify(res.data.user));
 
-     navigate("/kalendari");
+        const role = res.data.user?.uloga;
+
+        if (role === "admin") {
+          navigate("/admin");
+        } else {
+          
+          navigate("/kalendari");
+        }
     } catch (err) {
       if (err.response?.status === 422) {
         setErrors(err.response.data.errors || {});

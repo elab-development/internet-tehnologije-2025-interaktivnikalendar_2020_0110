@@ -44,3 +44,10 @@ docker compose exec backend php artisan db:seed
 Aplikacija je postavljena na produkciono okruženje i dostupna je na sledećem linku:
 
 [Pokreni aplikaciju](https://bountiful-elegance-production-6662.up.railway.app/)
+
+
+## Testiranje aplikacije
+Implementiran je CI/CD pipeline pomoću GitHub Actions.
+Na svaki push i pull request automatski se pokreću backend testovi, vrši se instalacija dependencija, migracije baze i pokreće PHPUnit test suite.
+Ako testovi prođu, pipeline automatski gradi Docker image aplikacije i objavljuje ga u GitHub Container Registry.
+Time je obezbeđena automatizovana provera kvaliteta i kontinuirana isporuka aplikacije.

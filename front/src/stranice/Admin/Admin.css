@@ -251,4 +251,41 @@
   .admin-ellipsis {
     max-width: 160px;
   }
+}/* ===== Modal (centered overlay) ===== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.55);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 18px;
+}
+
+.modal-card {
+  width: min(720px, 100%);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  padding: 16px;
+}
+
+.modal-head {
+  margin-bottom: 10px;
+}
+
+/*  lepši scroll na Windowsu */
+.modal-card::-webkit-scrollbar {
+  width: 10px;
+}
+.modal-card::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
 }

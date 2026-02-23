@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
+use App\Http\Controllers\Api\Admin\AdminDogadjajiController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DogadjajController;
 use App\Http\Controllers\Api\KalendarController;
@@ -56,6 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/users/{id}', [AdminUserController::class, 'show']);
     Route::put('/admin/users/{id}', [AdminUserController::class, 'update']);
     Route::delete('/admin/users/{id}', [AdminUserController::class, 'destroy']);
+
+
+    Route::post('/admin/dogadjaji/assign', [AdminDogadjajiController::class, 'assign']);
 });
 
 

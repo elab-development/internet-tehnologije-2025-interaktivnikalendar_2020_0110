@@ -10,10 +10,18 @@ use Illuminate\Support\Facades\Validator;
 class NotifikacijaController extends Controller
 {
     // GET /api/notifikacije
-    public function index()
-    {
-        return response()->json(Notifikacija::all());
-    }
+        public function index(Request $request)
+        {
+            $userId = $request->user()->id;
+
+            $list = Notifikacija::where('user_id', $userId)
+                ->orderBy('poslati_u', 'desc')
+                ->get();
+
+            return response()->json([
+                'data' => $list
+            ]);
+        }
 
     // POST /api/notifikacije
     public function store(Request $request)

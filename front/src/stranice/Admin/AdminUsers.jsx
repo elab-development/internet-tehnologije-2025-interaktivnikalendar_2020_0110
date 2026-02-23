@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../api/axios";
 import "./Admin.css";
+import AssignEventModal from "../../komponente/Admin/AssignEventModal";
 
 const ROLE_OPTIONS = [
   { value: "admin", label: "admin" },
@@ -95,6 +96,30 @@ export default function AdminUsers() {
   const canPrev = meta.current_page > 1;
   const canNext = meta.current_page < meta.last_page;
 
+  const [assignOpen, setAssignOpen] = useState(false);
+const [assignUser, setAssignUser] = useState(null);
+const assignEvent = async (eventPayload) => {
+  if (!assignUser) return false;
+
+  setMessage("");
+  try {
+    await api.post("/admin/dogadjaji/assign", {
+      user_id: assignUser.id,
+      event: eventPayload,
+    });
+    setMessage(`Događaj je dodeljen korisniku ${assignUser.email}.`);
+    return true;
+  } catch (err) {
+    const firstError =
+      err.response?.data?.errors
+        ? Object.values(err.response.data.errors)?.[0]?.[0]
+        : null;
+
+    setMessage(firstError || err.response?.data?.message || "Greška pri dodeli događaja.");
+    return false;
+  }
+};
+ 
   return (
     <div className="page">
       <div className="auth-wrap">
@@ -199,6 +224,17 @@ export default function AdminUsers() {
                             >
                               {deletingId === u.id ? "Brisanje..." : "Obriši"}
                             </button>
+                            <button
+                                type="button"
+                                className="btn-outline"
+                                onClick={() => {
+                                  setAssignUser(u);
+                                  setAssignOpen(true);
+                                }}
+                                disabled={deletingId === u.id || savingId === u.id}
+                              >
+                                Dodeli događaj
+                              </button>
                           </td>
                         </tr>
                       ))
@@ -230,6 +266,15 @@ export default function AdminUsers() {
           )}
         </div>
       </div>
-    </div>
+      <AssignEventModal
+        open={assignOpen}
+        user={assignUser}
+        onClose={() => {
+          setAssignOpen(false);
+          setAssignUser(null);
+        }}
+        onSubmit={assignEvent}
+      />
+         </div>
   );
 }

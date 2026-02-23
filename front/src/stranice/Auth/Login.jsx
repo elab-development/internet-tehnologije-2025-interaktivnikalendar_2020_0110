@@ -27,7 +27,7 @@ export default function Login() {
         localStorage.setItem("user", JSON.stringify(res.data.user));
 
         const role = res.data.user?.uloga;
-       alert("User role:", role);
+       console.log("User role:", role);
         if (role == "admin") {
           navigate("/admin");
         } else {

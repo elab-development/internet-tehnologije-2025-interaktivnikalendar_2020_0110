@@ -1,15 +1,14 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-COPY front/package*.json ./
+COPY package*.json ./
 RUN npm ci
 
-COPY front/ ./
+COPY . .
 RUN npm run build
 
 FROM nginx:alpine
 COPY --from=build /app/build /usr/share/nginx/html
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
-#COPY front/docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf:ro
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
